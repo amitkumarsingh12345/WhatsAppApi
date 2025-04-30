@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-import { registerUser } from "../controllers/userController.js"; // ✅ Add .js extension (ESM required)
+import { getUsers, registerUser } from "../controllers/userController.js"; // ✅ Add .js extension (ESM required)
 
 const router = express.Router();
 
@@ -20,5 +20,6 @@ const upload = multer({ storage });
 
 // Route: POST /api/users/register
 router.post("/register", upload.single("profileImage"), registerUser);
+router.get("/register", getUsers);
 
 export default router;
