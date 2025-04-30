@@ -3,11 +3,7 @@ import mongoose from "mongoose";
 export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(
-      "mongodb+srv://amitkumarsingh1482:amit1234@document.dkfjdwr.mongodb.net/divya-shop",
-      {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      }
+      "mongodb+srv://amitkumarsingh1482:amit1234@document.dkfjdwr.mongodb.net/divya-shop"
     );
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
@@ -15,3 +11,4 @@ export const connectDB = async () => {
     process.exit(1);
   }
 };
+
