@@ -1,25 +1,94 @@
-import express from "express";
-import multer from "multer";
-import path from "path";
-import { fileURLToPath } from "url";
-import { getUsers, registerUser } from "../controllers/userController.js"; // ✅ Add .js extension (ESM required)
+const express = require("express");
+const multer = require("multer");
+const { storage, cloudinary } = require("../config/cloudinary");
+const UserApi = require("../models/User");
 
 const router = express.Router();
-
-// __dirname workaround for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Multer setup
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, "../uploads")), // ✅ safer path
-  filename: (req, file, cb) =>
-    cb(null, Date.now() + path.extname(file.originalname)),
-});
 const upload = multer({ storage });
 
-// Route: POST /api/users/register
-router.post("/register", upload.single("profileImage"), registerUser);
-router.get("/register", getUsers);
+/**
+ * Create User
+ */
+router.post("/", upload.single("image"), async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const imageUrl = req.file.path;
 
-export default router;
+    const newUser = new UserApi({ name, email, password, imageUrl });
+    await newUser.save();
+
+    res.status(201).json({ message: "User created", user: newUser });
+  } catch (err) {
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+/**
+ * Get All Users
+ */
+router.get("/", async (req, res) => {
+  try {
+    const users = await UserApi.find();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+/**
+ * Update User
+ */
+router.put("/:id", upload.single("image"), async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    const user = await UserApi.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.password = password || user.password;
+
+    if (req.file) {
+      // Optional: delete old image from Cloudinary
+      const oldPublicId = user.imageUrl?.split("/")?.pop()?.split(".")[0];
+      if (oldPublicId) {
+        await cloudinary.uploader.destroy(`uploads/${oldPublicId}`);
+      }
+
+      user.imageUrl = req.file.path;
+    }
+
+    await user.save();
+    res.json({ message: "User updated", user });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ error: "Failed to update user", details: err.message });
+  }
+});
+
+/**
+ * Delete User
+ */
+router.delete("/:id", async (req, res) => {
+  try {
+    const user = await UserApi.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Optional: delete image from Cloudinary
+    const publicId = user.imageUrl?.split("/")?.pop()?.split(".")[0];
+    if (publicId) {
+      await cloudinary.uploader.destroy(`uploads/${publicId}`);
+    }
+
+    await user.deleteOne();
+    res.json({ message: "User deleted" });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ error: "Failed to delete user", details: err.message });
+  }
+});
+
+module.exports = router;
